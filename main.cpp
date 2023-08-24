@@ -12,12 +12,22 @@ struct Ball {
 	Vector2 accele;
 	Vector2 direction;
 	float radius;
+	int shootCoolTime;
 	unsigned int color;
+};
+struct Bullet {
+	Vector2 pos;
+	float width;
+	float height;
+	float radius;
+	float speed;
+	int isShoot;
 };
 struct circle {
 	Vector2 center;
 	Vector2 direction;
 	int radius;
+	int speed = 8;
 };
 
 const char kWindowTitle[] = "LC1C_01_アオキ_コウシ_タイトル";
@@ -37,14 +47,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		{0.0f,-0.8f},
 		{ 1,0 },
 		30.0f,
+		10,
 		WHITE
 	};
-	circle enemy = { {600,100},{-1,0},30 };
+	Bullet bullet[32];
+	for (int i = 0; i < 32; i++) {
+		bullet[i].pos.x = -128.0f;
+		bullet[i].pos.y = -128.0f;
+		bullet[i].width = 8.0f;
+		bullet[i].height = 16.0f;
+		bullet[i].radius = 8.0f;
+		bullet[i].speed = 8.0f;
+		bullet[i].isShoot = false;
+	}
 
+	circle enemy = { {600,100},{-1,0},30 };
+	float amplitude = 100.0f;
+	float theta = 1.0f / 30.0f * float(M_PI);
 
 
 	int dir;
-	int flag = 0;
 	float dot;
 	int posy = 0;
 	int speed = 10;
@@ -55,10 +77,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int bgTex[2]{};
 	bgTex[0] = Novice::LoadTexture("./Colosseum.png");
 	bgTex[1] = Novice::LoadTexture("./Colosseum2.png");
+	int glaphHandle1;
+	int glaphHandle2;
+	int glaphHandle3;
+	glaphHandle1 = Novice::LoadTexture("./bullet.png");
+	glaphHandle2 = Novice::LoadTexture("./wizardright.png");
+	glaphHandle3 = Novice::LoadTexture("./wizardleft.png");
 	posy -= 500;
 	posy *= -1;
 	int posy2 = 0;
 	int posy3 = 0;
+	enum Direction {
+		LEFT,
+		RIGHT,
+
+	};
+	Direction way = RIGHT;
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -71,20 +106,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-
-		///
-		/// ↑更新処理ここまで
-		///
-		if (player.center.x > 2530) {
-			player.center.x = 2530;
-		}
-		if (player.center.x < 30) {
-			player.center.x = 30;
-		}
+		//スクロール処理
 		if (player.center.x >= 640 && player.center.x <= 1920) {
 			scrollx = (int)player.center.x - 640;
 		}
-
+		//左右判定
 		dir = (int)player.center.x - (int)enemy.center.x;
 		if (dir >= 0) {
 			enemy.direction.x = 1;
@@ -92,38 +118,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		else {
 			enemy.direction.x = -1;
 		}
-		if (keys[DIK_A] != 0) {
-			player.center.x -= speed;
-			player.direction.x = -1;
-		}
-		if (keys[DIK_D] != 0) {
+		//自機の移動処理
+		if (keys[DIK_RIGHT] != 0) {
 			player.center.x += speed;
 			player.direction.x = 1;
+			way = RIGHT;
 		}
-		dot = enemy.direction.x * player.direction.x + enemy.direction.y * player.direction.y;
-		if (dot < 0.0f) {
-			flag = 1;
-		}
-		else {
-			flag = 0;
+		if (keys[DIK_LEFT] != 0) {
+			player.center.x -= speed;
+			player.direction.x = -1;
+			way = LEFT;
 		}
 
-		if (keys[DIK_SPACE] != 0 && player.center.y == player.radius) {
+		dot = enemy.direction.x * player.direction.x + enemy.direction.y * player.direction.y;
+		//ダッシュ・ジャンプ
+		if (keys[DIK_Z] != 0 && player.center.y == player.radius) {
 			player.velocity.y = 20.0f;
 		}
-		if (keys[DIK_C] != 0 && keys[DIK_D] != 0) {
-			player.velocity.x = 20.0f;
+		if (keys[DIK_C] != 0 && keys[DIK_RIGHT] != 0 && dash == 0) {
+			player.velocity.x = 10.0f;
 			dash = 1;
 		}
-		 if (keys[DIK_C] != 0 && keys[DIK_A] != 0) {
-			 player.velocity.x = -20.0f;
-			 dash = 1;
+		if (keys[DIK_C] != 0 && keys[DIK_LEFT] != 0 && dash == 0) {
+			player.velocity.x = -10.0f;
+			dash = 1;
 		}
-		if (dash == 1) {;
+		if (dash == 1) {
+			;
 			dashcount--;
 		}
 		if (dashcount == 0) {
 			dash = 0;
+			dashcount = 30;
 			player.velocity.x = 0.0f;
 		}
 		player.velocity.y += player.accele.y;
@@ -131,24 +157,106 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		player.velocity.x += player.accele.x;
 		player.center.x += player.velocity.x;
 
+		// 弾の発射処理
+		if (keys[DIK_X]) {
+
+			// 発射間隔の調整用クールタイムの計算
+			if (player.shootCoolTime > 0) {
+				player.shootCoolTime--;
+			}
+			else {
+				player.shootCoolTime = 10;
+			}
+
+			// i番目の弾が撃たれていなかったら発射する
+			if (player.shootCoolTime <= 0) {
+				for (int i = 0; i < 32; i++) {
+					if (!bullet[i].isShoot) {
+						bullet[i].isShoot = true;
+						bullet[i].pos.x = player.center.x;
+						bullet[i].pos.y = player.center.y;
+						break;
+					}
+				}
+			}
+		}
+		// 弾道計算
+		for (int i = 0; i < 32; i++) {
+			bullet[i].pos.y -= 500;
+			bullet[i].pos.y *= -1;
+			if (bullet[i].isShoot) {
+				// 横方向に進ませる
+				bullet[i].pos.x += bullet[i].speed;
+
+				// 画面外に出たら発射フラグをFalseに変更する
+				if (bullet[i].pos.x <= 0 - bullet[i].height / 2.0f || bullet[i].pos.x >= 2530 - bullet[i].height / 2.0f) {
+					bullet[i].isShoot = false;
+				}
+			}
+		}
+		//敵の移動処理
+		enemy.center.x += enemy.speed;
+		enemy.center.y = sinf(theta) * amplitude + 300;
+		theta += 1.0 / 120.0f * float(M_PI);
+
+
+		//地面との当たり判定
 		if (player.center.y <= player.radius) {
 			player.center.y = player.radius;
 		}
+
+
+		//自機の画面端の当たり判定
+		if (player.center.x >= 2530) {
+			player.center.x = 2530;
+		}
+		if (player.center.x <= 30) {
+			player.center.x = 30;
+		}
+
+
+		//敵の画面端の当たり判定
+		if (enemy.center.x >= 2530) {
+			enemy.speed *= -1;
+		}
+		if (enemy.center.x <= 30) {
+			enemy.speed *= -1;
+		}
+
+
+		//座標変換
 		posy2 = ((int)player.center.y - 500) * -1;
 		posy3 = ((int)enemy.center.y - 500) * -1;
+		///
+		/// ↑更新処理ここまで
+		///
+
+
 		///
 		/// ↓描画処理ここから
 		///
 		Novice::DrawSprite(0 - scrollx, 0, bgTex[0], 1, 1, 0.0f, 0xFFFFFFFF);
 		Novice::DrawSprite(1280 - scrollx, 0, bgTex[1], 1, 1, 0.0f, 0xFFFFFFFF);
-		Novice::DrawEllipse((int)player.center.x - scrollx, posy2, (int)player.radius, (int)player.radius, 0.0f, WHITE, kFillModeSolid);
-		Novice::DrawEllipse((int)enemy.center.x, (int)posy3, enemy.radius, enemy.radius, 0.0f, WHITE, kFillModeSolid);
-		if (flag == 1) {
-			Novice::DrawEllipse((int)enemy.center.x, (int)posy2, enemy.radius, enemy.radius, 0.0f, BLUE, kFillModeSolid);
+		
+		if (keys[DIK_RIGHT]!=0&&way==RIGHT||preKeys[DIK_RIGHT]==0 && way == RIGHT) {
+			Novice::DrawSprite((int)player.center.x - scrollx, posy2, glaphHandle2, 2, 2, 0.0f, WHITE);
 		}
-		Novice::DrawLine((int)enemy.center.x, (int)posy2, (int)enemy.center.x + (int)enemy.direction.x * 200, (int)posy, WHITE);
-		Novice::DrawLine((int)player.center.x, (int)posy2, (int)player.center.x + (int)player.direction.x * 200, (int)posy, WHITE);
-		Novice::DrawLine(0, posy, 1280, posy, WHITE);
+		if (keys[DIK_LEFT]!=0 && way == LEFT || preKeys[DIK_LEFT] == 0 && way == LEFT) {
+			Novice::DrawSprite((int)player.center.x - scrollx, posy2, glaphHandle3, 2, 2, 0.0f, WHITE);
+		}
+		Novice::DrawEllipse((int)enemy.center.x - scrollx, (int)posy3, enemy.radius, enemy.radius, 0.0f, WHITE, kFillModeSolid);
+
+
+		//Novice::DrawLine(0, posy, 1280, posy, WHITE);
+		Novice::DrawLine(1 - scrollx, 1000, 1 - scrollx, -1000, RED);
+		Novice::DrawLine(2529 - scrollx, 1000, 2529 - scrollx, -1000, RED);
+
+
+		for (int i = 0; i < 32; i++) {
+			if (bullet[i].isShoot) {
+				Novice::DrawSprite((int)bullet[i].pos.x - scrollx, (int)bullet[i].pos.y - 32, glaphHandle1, 1, 1, 0.0f, WHITE);
+			}
+		}
 		///
 		/// ↑描画処理ここまで
 		///
