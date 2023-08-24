@@ -237,11 +237,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		Novice::DrawSprite(0 - scrollx, 0, bgTex[0], 1, 1, 0.0f, 0xFFFFFFFF);
 		Novice::DrawSprite(1280 - scrollx, 0, bgTex[1], 1, 1, 0.0f, 0xFFFFFFFF);
-		
-		if (keys[DIK_RIGHT]!=0&&way==RIGHT||preKeys[DIK_RIGHT]==0 && way == RIGHT) {
+
+		if (way == RIGHT) {
 			Novice::DrawSprite((int)player.center.x - scrollx, posy2, glaphHandle2, 2, 2, 0.0f, WHITE);
 		}
-		if (keys[DIK_LEFT]!=0 && way == LEFT || preKeys[DIK_LEFT] == 0 && way == LEFT) {
+		if (way == LEFT) {
 			Novice::DrawSprite((int)player.center.x - scrollx, posy2, glaphHandle3, 2, 2, 0.0f, WHITE);
 		}
 		Novice::DrawEllipse((int)enemy.center.x - scrollx, (int)posy3, enemy.radius, enemy.radius, 0.0f, WHITE, kFillModeSolid);
