@@ -87,6 +87,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	posy *= -1;
 	int posy2 = 0;
 	int posy3 = 0;
+	int posy4 = 0;
 	enum Direction {
 		LEFT,
 		RIGHT,
@@ -182,9 +183,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		// 弾道計算
 		for (int i = 0; i < 32; i++) {
-			bullet[i].pos.y -= 500;
-			bullet[i].pos.y *= -1;
-			if (bullet[i].isShoot) {
+			if (bullet[i].isShoot&&way==RIGHT) {
 				// 横方向に進ませる
 				bullet[i].pos.x += bullet[i].speed;
 
@@ -192,6 +191,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				if (bullet[i].pos.x <= 0 - bullet[i].height / 2.0f || bullet[i].pos.x >= 2530 - bullet[i].height / 2.0f) {
 					bullet[i].isShoot = false;
 				}
+			}
+			else if (bullet[i].isShoot && way == LEFT) {
+				bullet[i].pos.x -= bullet[i].speed;
 			}
 		}
 		//敵の移動処理
@@ -227,6 +229,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		//座標変換
 		posy2 = ((int)player.center.y - 500) * -1;
 		posy3 = ((int)enemy.center.y - 500) * -1;
+		for (int i = 0; i < 32; i++) {
+			posy4 = ((int)bullet[i].pos.y - 500) * -1;
+		}
 		///
 		/// ↑更新処理ここまで
 		///
@@ -254,9 +259,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		for (int i = 0; i < 32; i++) {
 			if (bullet[i].isShoot) {
-				Novice::DrawSprite((int)bullet[i].pos.x - scrollx, (int)bullet[i].pos.y - 32, glaphHandle1, 1, 1, 0.0f, WHITE);
+				Novice::DrawSprite((int)bullet[i].pos.x - scrollx, posy4, glaphHandle1, 1, 1, 0.0f, WHITE);
 			}
 		}
+		Novice::ScreenPrintf(10, 10, "posy4 %d", posy4);
 		///
 		/// ↑描画処理ここまで
 		///
