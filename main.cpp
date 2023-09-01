@@ -28,6 +28,15 @@ struct circle {
 	Vector2 direction;
 	int radius;
 	int speed = 8;
+	int ealive = 1;
+};
+struct EBullet {
+	Vector2 pos;
+	float width;
+	float height;
+	float radius;
+	float speed;
+	int isShoot;
 };
 
 const char kWindowTitle[] = "LC1C_01_アオキ_コウシ_タイトル";
@@ -52,23 +61,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 	Bullet bullet[32];
 	for (int i = 0; i < 32; i++) {
+		bullet[i].pos.x = 10.0f,
+			bullet[i].pos.y = 10.0f,
+			bullet[i].width = 8.0f,
+			bullet[i].height = 16.0f,
+			bullet[i].radius = 8.0f,
+			bullet[i].speed = 8.0f,
+			bullet[i].isShoot = false,
+	};
+
+	circle enemy = { {600,100},{-1,0},30 };
+	float amplitude = 100.0f;
+	float theta = 1.0f / 30.0f * float(M_PI);
+
+	EBullet ebullet[20];
+	for (int i = 0; i < 20; i++) {
 		bullet[i].pos.x = -128.0f;
 		bullet[i].pos.y = -128.0f;
 		bullet[i].width = 8.0f;
 		bullet[i].height = 16.0f;
 		bullet[i].radius = 8.0f;
 		bullet[i].speed = 8.0f;
-		bullet[i].isShoot = false;
+		bullet[i].isShoot = 0;
 	}
 
-	circle enemy = { {600,100},{-1,0},30 };
-	float amplitude = 100.0f;
-	float theta = 1.0f / 30.0f * float(M_PI);
-
-
-	int dir;
-	float dot;
-	int posy = 0;
+	float theta2 = (20.0f / 360.0f) * (float(M_PI));
 	int speed = 10;
 	int scrollx = 0;
 	int dash = 0;
@@ -83,8 +100,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	glaphHandle1 = Novice::LoadTexture("./bullet.png");
 	glaphHandle2 = Novice::LoadTexture("./wizardright.png");
 	glaphHandle3 = Novice::LoadTexture("./wizardleft.png");
-	posy -= 500;
-	posy *= -1;
 	int posy2 = 0;
 	int posy3 = 0;
 	int posy4 = 0;
@@ -111,14 +126,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		if (player.center.x >= 640 && player.center.x <= 1920) {
 			scrollx = (int)player.center.x - 640;
 		}
-		//左右判定
-		dir = (int)player.center.x - (int)enemy.center.x;
-		if (dir >= 0) {
-			enemy.direction.x = 1;
-		}
-		else {
-			enemy.direction.x = -1;
-		}
 		//自機の移動処理
 		if (keys[DIK_RIGHT] != 0) {
 			player.center.x += speed;
@@ -131,7 +138,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			way = LEFT;
 		}
 
-		dot = enemy.direction.x * player.direction.x + enemy.direction.y * player.direction.y;
+
 		//ダッシュ・ジャンプ
 		if (keys[DIK_Z] != 0 && player.center.y == player.radius) {
 			player.velocity.y = 20.0f;
@@ -183,19 +190,41 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		// 弾道計算
 		for (int i = 0; i < 32; i++) {
-			if (bullet[i].isShoot&&way==RIGHT) {
+			if (bullet[i].isShoot && way == RIGHT) {
 				// 横方向に進ませる
 				bullet[i].pos.x += bullet[i].speed;
-
-				// 画面外に出たら発射フラグをFalseに変更する
-				if (bullet[i].pos.x <= 0 - bullet[i].height / 2.0f || bullet[i].pos.x >= 2530 - bullet[i].height / 2.0f) {
-					bullet[i].isShoot = false;
-				}
+				break;
 			}
-			else if (bullet[i].isShoot && way == LEFT) {
+			if (bullet[i].isShoot && way == LEFT) {
 				bullet[i].pos.x -= bullet[i].speed;
+				break;
+			}
+			// 画面外に出たら発射フラグをFalseに変更する
+			if (bullet[i].pos.x <= 0 - bullet[i].height / 2.0f || bullet[i].pos.x >= 2530 - bullet[i].height / 2.0f) {
+				bullet[i].isShoot = false;
 			}
 		}
+
+		//敵の攻撃
+		if (enemy.ealive == 1) {
+			for (int i = 0; i < 20; i++) {
+				if (ebullet[i].isShoot == false)
+					ebullet[i].pos.x = enemy.center.x;
+				ebullet[i].pos.y = enemy.center.y;
+				ebullet[i].isShoot = true;
+				break;
+			}
+		}
+
+		for (int i = 0; i < 20; i++) {
+			if (ebullet[i].isShoot == 1) {
+				// 横方向に進ませる
+				ebullet[i].pos.x += ebullet[i].speed * cosf(theta2);
+				bullet[i].pos.y += ebullet[i].speed * sinf(theta2);
+				break;
+			}
+		}
+
 		//敵の移動処理
 		enemy.center.x += enemy.speed;
 		enemy.center.y = sinf(theta) * amplitude + 300;
@@ -262,7 +291,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				Novice::DrawSprite((int)bullet[i].pos.x - scrollx, posy4, glaphHandle1, 1, 1, 0.0f, WHITE);
 			}
 		}
-		Novice::ScreenPrintf(10, 10, "posy4 %d", posy4);
+		for (int i = 0; i < 20; i++) {
+			if (ebullet[i].isShoot == 1) {
+				Novice::DrawEllipse((int)ebullet[i].pos.x - scrollx, posy4, 8, 8, 0.0f, WHITE, kFillModeSolid);
+			}
+		}
 		///
 		/// ↑描画処理ここまで
 		///
